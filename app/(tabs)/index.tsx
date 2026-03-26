@@ -1,98 +1,182 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { BannerAd, BannerAdSize, TestIds, InterstitialAd, AdEventType } from '../../components/AdMob';
+import { CircularProgress } from '../../components/CircularProgress';
+import { useSettings } from '../../hooks/useSettings';
+import { usePomodoroTimer } from '../../hooks/usePomodoroTimer';
+import { DEFAULT_FOCUS_TIME_SEC, DEFAULT_BREAK_TIME_SEC } from '../../constants/TimerConfig';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const { width } = Dimensions.get('window');
+const CIRCLE_RADIUS = width * 0.35;
 
-export default function HomeScreen() {
+const interstitial = InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL, {
+  requestNonPersonalizedAdsOnly: true,
+});
+
+export default function TimerScreen() {
+  const { loadSettings } = useSettings();
+  const [interstitialLoaded, setInterstitialLoaded] = useState(false);
+
+  useEffect(() => {
+    const unsubscribeLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
+      setInterstitialLoaded(true);
+    });
+    interstitial.load();
+    return () => unsubscribeLoaded();
+  }, []);
+
+  const handleSessionComplete = useCallback((completedMode: 'focus' | 'break') => {
+    if (completedMode === 'focus' && interstitialLoaded) {
+      try {
+        interstitial.show();
+        interstitial.load();
+      } catch (e) {
+        console.log('Error showing interstitial ad', e);
+      }
+    }
+  }, [interstitialLoaded]);
+
+  const {
+    isActive,
+    mode,
+    timeLeft,
+    totalTime,
+    toggleTimer,
+    resetTimer,
+    switchMode,
+    syncSettings,
+  } = usePomodoroTimer(DEFAULT_FOCUS_TIME_SEC, DEFAULT_BREAK_TIME_SEC, handleSessionComplete);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      loadSettings().then((result) => {
+        if (active && result.changed) {
+          syncSettings(result.focusTimeTotal, result.breakTimeTotal);
+        }
+      });
+      return () => { active = false; };
+    }, [loadSettings, syncSettings])
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Focus Timer</Text>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <View style={[styles.modeSelector, { opacity: isActive ? 0.5 : 1 }]}>
+        <TouchableOpacity
+          disabled={isActive}
+          style={[styles.modeButton, mode === 'focus' && styles.modeButtonActive]}
+          onPress={() => switchMode('focus')}
+        >
+          <Text style={[styles.modeText, mode === 'focus' && styles.modeTextActive]}>Focus</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          disabled={isActive}
+          style={[styles.modeButton, mode === 'break' && styles.modeButtonActive]}
+          onPress={() => switchMode('break')}
+        >
+          <Text style={[styles.modeText, mode === 'break' && styles.modeTextActive]}>Break</Text>
+        </TouchableOpacity>
+      </View>
+
+      <CircularProgress
+        radius={CIRCLE_RADIUS}
+        timeLeft={timeLeft}
+        totalTime={totalTime}
+        mode={mode}
+        isActive={isActive}
+      />
+
+      <View style={styles.controls}>
+        <TouchableOpacity style={styles.controlButton} onPress={toggleTimer}>
+          <Text style={styles.controlButtonText}>{isActive ? 'Pause' : 'Start'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.controlButton, styles.resetButton]} onPress={resetTimer}>
+          <Text style={styles.controlButtonText}>Reset</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.adContainer}>
+        <BannerAd
+          unitId={TestIds.BANNER}
+          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+          requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
     alignItems: 'center',
-    gap: 8,
+    paddingTop: 60,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  header: {
+    marginBottom: 30,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 25,
+    padding: 5,
+    marginBottom: 50,
+  },
+  modeButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 20,
+  },
+  modeButtonActive: {
+    backgroundColor: '#333333',
+  },
+  modeText: {
+    color: '#888888',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modeTextActive: {
+    color: '#FFFFFF',
+  },
+  controls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  controlButton: {
+    backgroundColor: '#FF5E5E',
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    minWidth: 120,
+    alignItems: 'center',
+    boxShadow: '0px 4px 8px rgba(255, 94, 94, 0.3)',
+  },
+  resetButton: {
+    backgroundColor: '#333333',
+    boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.3)',
+  },
+  controlButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  adContainer: {
+    marginTop: 'auto',
+    marginBottom: 20,
+    alignItems: 'center',
+    width: '100%',
   },
 });
