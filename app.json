@@ -21,6 +21,9 @@
       "permissions": [
         "com.google.android.gms.permission.AD_ID"
       ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "package": "net.technologyagency.focustimer"
     },
     "web": {

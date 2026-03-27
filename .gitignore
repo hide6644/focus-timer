@@ -41,3 +41,32 @@ app-example
 # generated native folders
 /ios
 /android
+
+# --- Additional Ignores ---
+
+# env files
+.env
+.env.*
+!.env.example
+
+# IDEs and Editors
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Windows OS Files
+Thumbs.db
+desktop.ini
+
+# Testing
+coverage/
+
+# EAS Build and local builds
+*.tar.gz
+build/
+
+# Android keystore files
+*.keystore
