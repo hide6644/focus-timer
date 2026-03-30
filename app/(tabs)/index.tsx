@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from 'react-native';
+import { useAudioPlayer } from 'expo-audio';
 import { useFocusEffect } from 'expo-router';
-import { BannerAd, BannerAdSize, TestIds, InterstitialAd, AdEventType } from '../../components/AdMob';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AdEventType, BannerAd, BannerAdSize, InterstitialAd, TestIds } from '../../components/AdMob';
 import { CircularProgress } from '../../components/CircularProgress';
-import { useSettings } from '../../hooks/useSettings';
+import { DEFAULT_BREAK_TIME_SEC, DEFAULT_FOCUS_TIME_SEC } from '../../constants/TimerConfig';
 import { usePomodoroTimer } from '../../hooks/usePomodoroTimer';
-import { DEFAULT_FOCUS_TIME_SEC, DEFAULT_BREAK_TIME_SEC } from '../../constants/TimerConfig';
+import { useSettings } from '../../hooks/useSettings';
 
 const { width } = Dimensions.get('window');
 const CIRCLE_RADIUS = width * 0.35;
@@ -17,6 +18,18 @@ const interstitial = InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL, {
 export default function TimerScreen() {
   const { loadSettings } = useSettings();
   const [interstitialLoaded, setInterstitialLoaded] = useState(false);
+  const player = useAudioPlayer(require('../../assets/sounds/beep.mp3'));
+
+  const playSound = useCallback(() => {
+    try {
+      if (player) {
+        player.seekTo(0);
+        player.play();
+      }
+    } catch (e) {
+      console.log('Error playing sound', e);
+    }
+  }, [player]);
 
   useEffect(() => {
     const unsubscribeLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
@@ -27,6 +40,7 @@ export default function TimerScreen() {
   }, []);
 
   const handleSessionComplete = useCallback((completedMode: 'focus' | 'break') => {
+    playSound();
     if (completedMode === 'focus' && interstitialLoaded) {
       try {
         interstitial.show();
@@ -35,7 +49,7 @@ export default function TimerScreen() {
         console.log('Error showing interstitial ad', e);
       }
     }
-  }, [interstitialLoaded]);
+  }, [interstitialLoaded, playSound]);
 
   const {
     isActive,
