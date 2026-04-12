@@ -20,21 +20,6 @@ export const AdEventType = {
   LOADED: 'loaded',
 };
 
-export const InterstitialAd = {
-  createForAdRequest: () => ({
-    load: () => {},
-    show: () => {
-      console.log('Showing Interstitial Ad (Web Mock)');
-    },
-    addAdEventListener: (event: string, callback: () => void) => {
-      if (event === AdEventType.LOADED) {
-        setTimeout(callback, 500); // Simulate network load
-      }
-      return () => {};
-    },
-  }),
-};
-
 const styles = StyleSheet.create({
   bannerMock: {
     width: 320,

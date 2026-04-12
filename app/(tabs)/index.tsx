@@ -1,8 +1,8 @@
 import { useAudioPlayer } from 'expo-audio';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { AdEventType, BannerAd, BannerAdSize, InterstitialAd, TestIds } from '../../components/AdMob';
+import { BannerAd, BannerAdSize, TestIds } from '../../components/AdMob';
 import { CircularProgress } from '../../components/CircularProgress';
 import { DEFAULT_BREAK_TIME_SEC, DEFAULT_FOCUS_TIME_SEC } from '../../constants/TimerConfig';
 import { usePomodoroTimer } from '../../hooks/usePomodoroTimer';
@@ -11,13 +11,8 @@ import { useSettings } from '../../hooks/useSettings';
 const { width } = Dimensions.get('window');
 const CIRCLE_RADIUS = width * 0.35;
 
-const interstitial = InterstitialAd.createForAdRequest(TestIds.INTERSTITIAL, {
-  requestNonPersonalizedAdsOnly: true,
-});
-
 export default function TimerScreen() {
   const { loadSettings } = useSettings();
-  const [interstitialLoaded, setInterstitialLoaded] = useState(false);
   const player = useAudioPlayer(require('../../assets/sounds/beep.mp3'));
 
   const playSound = useCallback(() => {
@@ -31,25 +26,9 @@ export default function TimerScreen() {
     }
   }, [player]);
 
-  useEffect(() => {
-    const unsubscribeLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
-      setInterstitialLoaded(true);
-    });
-    interstitial.load();
-    return () => unsubscribeLoaded();
-  }, []);
-
   const handleSessionComplete = useCallback((completedMode: 'focus' | 'break') => {
     playSound();
-    if (completedMode === 'focus' && interstitialLoaded) {
-      try {
-        interstitial.show();
-        interstitial.load();
-      } catch (e) {
-        console.log('Error showing interstitial ad', e);
-      }
-    }
-  }, [interstitialLoaded, playSound]);
+  }, [playSound]);
 
   const {
     isActive,
