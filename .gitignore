@@ -70,3 +70,7 @@ build/
 
 # Android keystore files
 *.keystore
+
+# Agent
+.agent/
+.planning/
