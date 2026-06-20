@@ -72,5 +72,5 @@ build/
 *.keystore
 
 # Agent
-.agent/*
-.planning/*
+.agent/
+.planning/
